@@ -2,132 +2,141 @@ import React, { useState } from "react";
 import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
 
-function App() {
-  // State variables for input fields
-  const [username, setUsername] = useState(""); // Tracks the username input
-  const [email, setEmail] = useState(""); // Tracks the email input (only for signup)
-  const [password, setPassword] = useState(""); // Tracks the password input
-  const [isLogin, setIsLogin] = useState(true); // Tracks if the user is in login or signup mode
-  const [token, setToken] = useState(localStorage.getItem("token")); // Gets the stored token from local storage (if any)
-  const [message, setMessage] = useState(""); // Tracks messages to display to the user (success or error)
+function Login({ onLoginSuccess }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
 
-  // Handles form submission for login or signup
-  const handleSubmit = async (e) => {
-    e.preventDefault(); // Prevents default form submission behavior
-
+  const handleLogin = async (e) => {
+    e.preventDefault();
     try {
-      // Determine the endpoint based on whether the user is logging in or signing up
-      const endpoint = isLogin ? "/login" : "/signup";
-
-      // Create the payload to send to the server
-      const payload = isLogin
-        ? { username, password } // Login requires only username and password
-        : { username, email, password }; // Signup requires username, email, and password
-
-      // Send a POST request to the server with the payload
-      const response = await axios.post(
-        `http://localhost:5000${endpoint}`,
-        payload
-      );
-
-      // If successful, store the returned token in local storage and update the state
+      const response = await axios.post("http://localhost:5000/login", {
+        username,
+        password,
+      });
       localStorage.setItem("token", response.data.token);
-      setToken(response.data.token);
-
-      // Set a success message
-      setMessage(isLogin ? "Login successful!" : "Signup successful!");
+      onLoginSuccess(response.data.token);
+      toast.success("Login successful!");
     } catch (error) {
-      // Handle errors and display an error message
-      setMessage(error.response?.data?.message || "Operation failed");
+      toast.error(error.response?.data?.message || "Login failed");
     }
   };
 
-  // Fetches protected data from the server after the user logs in
+  return (
+    <form onSubmit={handleLogin}>
+      <h2>Login</h2>
+      <input
+        type="text"
+        value={username}
+        onChange={(e) => setUsername(e.target.value)}
+        placeholder="Username"
+        required
+      />
+      <input
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        placeholder="Password"
+        required
+      />
+      <button type="submit">Login</button>
+    </form>
+  );
+}
+
+function Signup({ onSignupSuccess }) {
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const handleSignup = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await axios.post("http://localhost:5000/signup", {
+        username,
+        email,
+        password,
+      });
+      localStorage.setItem("token", response.data.token);
+      onSignupSuccess(response.data.token);
+      toast.success("Signup successful!");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Signup failed");
+    }
+  };
+
+  return (
+    <form onSubmit={handleSignup}>
+      <h2>Sign Up</h2>
+      <input
+        type="text"
+        value={username}
+        onChange={(e) => setUsername(e.target.value)}
+        placeholder="Username"
+        required
+      />
+      <input
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="Email"
+        required
+      />
+      <input
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        placeholder="Password"
+        required
+      />
+      <button type="submit">Sign Up</button>
+    </form>
+  );
+}
+
+function App() {
+  const [token, setToken] = useState(localStorage.getItem("token"));
+  const [isLoginView, setIsLoginView] = useState(true);
+  const [message, setMessage] = useState("");
+
   const fetchProtectedData = async () => {
     try {
-      // Send a GET request with the token in the Authorization header
       const response = await axios.get("http://localhost:5000/protected", {
         headers: { Authorization: `Bearer ${token}` },
       });
-
-      // Display the message returned from the server
       setMessage(response.data.message);
     } catch (error) {
-      // Handle errors and display a failure message
       setMessage("Failed to fetch data");
     }
   };
 
-  // Handles user logout
   const handleLogout = () => {
-    // Remove the token from local storage
     localStorage.removeItem("token");
-
-    // Clear the token from the state
     setToken(null);
   };
 
   return (
     <div>
-      {/* If the user is not logged in, display the login or signup form */}
       {!token ? (
-        <form onSubmit={handleSubmit}>
-          <h2>{isLogin ? "Login" : "Sign Up"}</h2>
-
-          {/* Input for username */}
-          <input
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="Username"
-            required
-          />
-
-          {/* Input for email (only visible in signup mode) */}
-          {!isLogin && (
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email"
-              required
-            />
+        <div>
+          {isLoginView ? (
+            <Login onLoginSuccess={setToken} />
+          ) : (
+            <Signup onSignupSuccess={setToken} />
           )}
-
-          {/* Input for password */}
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
-            required
-          />
-
-          {/* Button to submit the form */}
-          <button type="submit">{isLogin ? "Login" : "Sign Up"}</button>
-
-          {/* Toggle link to switch between login and signup */}
-          <p onClick={() => setIsLogin(!isLogin)}>
-            {isLogin
+          <p onClick={() => setIsLoginView(!isLoginView)}>
+            {isLoginView
               ? "Need an account? Sign Up"
               : "Already have an account? Login"}
           </p>
-        </form>
+        </div>
       ) : (
-        // If the user is logged in, display options to fetch data or logout
         <div>
           <p>Logged In</p>
-
-          {/* Button to fetch protected data */}
           <button onClick={fetchProtectedData}>Fetch Protected Data</button>
-
-          {/* Button to log out */}
           <button onClick={handleLogout}>Logout</button>
+          {message && <p>{message}</p>}
         </div>
       )}
-
-      {/* Display any success or error message */}
-      {message && <p>{toast(message)}</p>}
       <ToastContainer position="bottom-right" />
     </div>
   );
